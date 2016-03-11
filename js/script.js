@@ -91,7 +91,7 @@ var HourlySearchView = Backbone.View.extend ({
 
 // Display Views to the Dom 
 var CurrentView = Backbone.View.extend({
-	el: ".weatherContainer",
+	el: ".currentCityContainer",
 	initialize: function(someModel) {
 		this.model = someModel
 		var boundRender = this.render.bind(this)
@@ -99,13 +99,12 @@ var CurrentView = Backbone.View.extend({
 	},
 	render: function() {
 		var currentData = this.model.attributes.currently
-		var iconNumber = 1 
-		this.el.innerHTML = '<div class="currentCityContainer">' +
+		var iconNumber = 0
+		this.el.innerHTML =
 							'<p class="currentCityTemperature">' + parseInt(currentData.temperature) + '&deg;F</p>\
 							<canvas id="icon'+ iconNumber + '" width="75" height="75"></canvas>\
-							<p class="currentCitySummary">' + currentData.summary + '</p>' +
-							'<p class="currentDay">' + weekObject[today] + '</p>' +
-							'</div>'			
+							<p><span class="currentCitySummary">' + currentData.summary + '</span>' +
+							'<span class="currentDay">' + weekObject[today] + '</span></p>'		
 		var iconString = currentData.icon
  		doSkyconStuff(iconString,iconNumber)
 	}
@@ -121,22 +120,18 @@ var DailyView = Backbone.View.extend({
 		var dailyData = this.model.attributes.daily.data
 		var hmtlString = ''
 		var iconNumber = 1
-
-		var icon
 		for (var i = 0; i < dailyData.length; i++) {
 			if (today < 7) {
 				today += 1
-
 				var dayObject = dailyData[i]
 				var iconString = dayObject.icon
 
 				hmtlString += '<div class="dailyTemperature">\
 							<p class="day">' + weekObject[today].substring(0,3) + '</p>\
 							<canvas class="skycon" id="icon' + iconNumber + '" width="75" height="75" data-icon="'+ iconString +'"></canvas>\
-							<p class="maxTemp">' + parseInt(dayObject.temperatureMax) + '&deg;</p><p class="minTemp"> / ' + parseInt(dayObject.temperatureMin) + '&deg;</p>\
+							<p class="maxAndMinTemps">' + parseInt(dayObject.temperatureMax) + '&deg; / ' + parseInt(dayObject.temperatureMin) + '&deg;</p>\
 							</div>'
 				iconNumber += 1
-
 				// doSkyconStuff(iconNumber, iconString) ... however <canvas> not on page
 
  			} else { today = 0}
@@ -157,28 +152,45 @@ var DailyView = Backbone.View.extend({
 })
 var HourlyView = Backbone.View.extend({
 	el: ".weatherContainer",
+	firstHourShowing: 0,
+
 	initialize: function(someModel) {
 		this.model = someModel
 		var boundRender = this.render.bind(this)
 		this.model.on("sync", boundRender)
 	},
+
+	nextSeven: function(clickEvent) {
+		if (clickEvent.target.value === "prev") this.firstHourShowing -= 7
+		else this.firstHourShowing += 7
+		if (this.firstHourShowing < 1 || this.firstHourShowing > 24) {
+			this.firstHourShowing = 0
+		}
+		this.render()
+	},
+
 	render: function() {
+		var startIndex = this.firstHourShowing
 		var hourlyData = this.model.attributes.hourly.data
-		var hmtlString = ''
+		var htmlString = ''
 		function getHourTime (input) {
 			var hour = new Date(input * 1000)
 			return hour.getHours() + ":" + hour.getMinutes() + hour.getMinutes() 
 		}
-		for (var i = 0; i < 24 ; i++) {
+		for (var i = startIndex; i < startIndex + 7 ; i++) {
 			var hourlyObject = hourlyData[i] 
-			hmtlString += '<div class="hourlyTemperature">\
+			htmlString += '<div class="hourlyTemperature">\
 							<p class="hourlyTime">' + getHourTime(hourlyObject.time) + '</p>\
 							<p class="hourlySummary">' + hourlyObject.summary + '</p>\
 							<p class="hourlyTemp">' + parseInt(hourlyObject.temperature) + '&deg;F / </p>\
 							<p class="hourlyWind">' + parseInt(hourlyObject.windSpeed) + 'mph</p>\
 							<p class="hourlyPrecip">Precip: ' + parseInt(hourlyObject.precipProbability*100) + '%</p></div>'
 		}
-		this.el.innerHTML =  hmtlString 
+		this.el.innerHTML = '<img class="nextButton" src="images/arrow-left.svg" value="prev">' + htmlString + '<img class="nextButton" src="images/arrow-right.svg">'
+		},
+
+	events: {
+		"click .nextButton": "nextSeven"
 	}
 })
 
@@ -266,6 +278,8 @@ function searchNewCity (keyEvent) {
 	var inputEl = keyEvent.target
 	if (keyEvent.keyCode === 13) {
 		var newSearchQuery = inputEl.value
+		var currentCity = document.querySelector(".currentCity")
+		currentCity.innerHTML = '<p>' +newSearchQuery+'</p>'
 		location.hash = "currentForecast/" + newSearchQuery
 		inputEl.value = ''
 	}
